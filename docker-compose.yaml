@@ -1,0 +1,57 @@
+# genai-financial-assistant/docker-compose.yaml
+version: '3.8'
+
+services:
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "5000:5000"
+    environment:
+      # These environment variables will be picked up by Flask apps if needed
+      # Though for API Gateway, direct config.py is sufficient for routing
+      FLASK_APP: app.py
+      FLASK_ENV: development
+    depends_on:
+      - market-data-service
+      - user-management-service
+      - genai-inference-service
+    networks:
+      - app-network
+
+  market-data-service:
+    build: ./services/market-data-service
+    ports:
+      - "5001:5001" # Only expose if you need to access directly, otherwise internal
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: development
+    networks:
+      - app-network
+
+  user-management-service:
+    build: ./services/user-management-service
+    ports:
+      - "5002:5002" # Only expose if you need to access directly, otherwise internal
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: development
+    networks:
+      - app-network
+
+  genai-inference-service:
+    build: ./services/genai-inference-service
+    ports:
+      - "5003:5003" # Only expose if you need to access directly, otherwise internal
+    environment:
+      # No need for GCP Project/Endpoint IDs for mocked local dev
+      # GCP_PROJECT_ID: "your-gcp-project-id"
+      # VERTEX_AI_ENDPOINT_ID: "your-vertex-ai-endpoint-id"
+      # VERTEX_AI_LOCATION: "us-central1"
+      FLASK_APP: app.py
+      FLASK_ENV: development
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

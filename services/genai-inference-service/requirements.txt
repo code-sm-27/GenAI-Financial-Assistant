@@ -1,0 +1,5 @@
+# services/genai-inference-service/requirements.txt
+Flask
+google-cloud-aiplatform
+scikit-learn
+numpy

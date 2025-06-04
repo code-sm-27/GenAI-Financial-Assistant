@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenAI Financial Assistant - Your Personal Advisor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS for refined aesthetics */
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; /* Slate-50 */ }
+        .header-gradient {
+            background: linear-gradient(to right, #0F172A, #1E293B); /* Slate-900 to Slate-800 */
+        }
+        .chat-container {
+            max-height: calc(100vh - 200px); /* Adjusted for better fit, considering header/footer/input */
+            overflow-y: auto; /* Enable vertical scrolling */
+            scroll-behavior: smooth; /* Smooth scrolling for new messages */
+            -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
+            scrollbar-width: none; /* Hide scrollbar for Firefox */
+        }
+        /* Hide scrollbar for Chrome, Safari, Opera */
+        .chat-container::-webkit-scrollbar {
+            display: none;
+        }
+        .message-bubble {
+            max-width: 80%; /* Limit bubble width */
+            border-radius: 1.25rem; /* Rounded-xl */
+            padding: 0.75rem 1rem; /* p-3 px-4 */
+            margin-bottom: 0.75rem; /* mb-3 */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* Subtle shadow */
+        }
+        .user-message {
+            background-color: #3B82F6; /* Blue-500 */
+            color: white;
+            margin-left: auto; /* Align user messages to the right */
+            border-bottom-right-radius: 0.5rem; /* Slightly less rounded on bottom right for visual distinction */
+        }
+        .ai-message {
+            background-color: #E2E8F0; /* Slate-200 */
+            color: #1E293B; /* Slate-900 */
+            margin-right: auto; /* Align AI messages to the left */
+            border-bottom-left-radius: 0.5rem; /* Slightly less rounded on bottom left for visual distinction */
+        }
+        /* Loading dots animation */
+        .loading-dots span {
+            animation: blink 1.4s infinite both;
+        }
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0% { opacity: 0.2; }
+            20% { opacity: 1; }
+            100% { opacity: 0.2; }
+        }
+        /* Primary button styling */
+        .btn-primary {
+            background-color: #3B82F6; /* Blue-500 */
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: #2563EB; /* Blue-600 */
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        /* Secondary button styling (for Gemini feature) */
+        .btn-secondary {
+            background-color: #10B981; /* Emerald-500 */
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        }
+        .btn-secondary:hover {
+            background-color: #059669; /* Emerald-600 */
+            transform: translateY(-1px);
+        }
+        .btn-secondary:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <header class="header-gradient text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold tracking-tight">
+                GenAI Financial Assistant
+            </h1>
+            <nav class="space-x-4">
+                <a href="/register" class="text-blue-200 hover:text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium">Register</a>
+                <a href="/login" class="text-blue-200 hover:text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium">Login</a>
+                <a href="/" class="text-blue-200 hover:text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium">Chat</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 md:p-8 flex flex-col">
+        <div class="bg-white rounded-xl shadow-xl flex-grow p-4 md:p-6 mb-6 flex flex-col">
+            <div id="chat-messages" class="chat-container flex-grow p-2">
+                <div class="ai-message message-bubble">
+                    <p class="font-semibold mb-1">Welcome to your Personal Financial Assistant!</p>
+                    <p>I'm here to help you navigate the world of investing. Ask me anything about financial concepts, investment products, or even specific stock outlooks (for educational purposes).</p>
+                    <p class="mt-2 text-sm text-gray-700">Example questions: "What is an SIP?", "Explain mutual funds.", "What's the outlook for Reliance stock?"</p>
+                </div>
+            </div>
+
+            <div class="flex items-center bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200 mb-4">
+                <input type="text" id="user-input" placeholder="Type your financial question here..."
+                       class="flex-grow p-3 md:p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-base md:text-lg">
+                <button id="send-button"
+                        class="ml-4 px-6 py-3 md:px-8 md:py-4 btn-primary text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Send
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-xl p-4 md:p-6 border border-gray-200 mt-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">✨ Generate Investment Plan Summary</h3>
+                <p class="text-gray-600 mb-4">Tell me your financial goal and investment details, and I'll generate a high-level plan summary using Gemini AI.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="financial-goal" class="block text-gray-700 text-sm font-semibold mb-2">Financial Goal (e.g., Retirement, Child's Education):</label>
+                        <input type="text" id="financial-goal" placeholder="e.g., Retirement in 20 years"
+                               class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label for="investment-details" class="block text-gray-700 text-sm font-semibold mb-2">Investment Details (e.g., ₹5000/month, Lump sum ₹1 Lakh):</label>
+                        <input type="text" id="investment-details" placeholder="e.g., ₹10,000 per month for 15 years"
+                               class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <button id="generate-plan-button"
+                        class="w-full px-6 py-3 btn-secondary text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                    Generate Plan ✨
+                </button>
+                <div id="plan-output" class="mt-4 p-4 bg-gray-100 rounded-lg border border-gray-300 hidden">
+                    <p class="font-semibold text-gray-800 mb-2">Your Investment Plan Summary:</p>
+                    <div id="plan-content" class="text-gray-700 whitespace-pre-wrap"></div>
+                </div>
+                <div id="plan-loading-indicator" class="mt-4 text-center text-gray-600 hidden">
+                    Generating plan<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+                </div>
+            </div>
+            </div>
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 p-4 text-center mt-auto shadow-inner">
+        <p class="text-sm">&copy; 2025 GenAI Financial Assistant. All rights reserved. For educational and informational purposes only.</p>
+    </footer>
+
+    <script>
+        // --- DOM Element References ---
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const chatMessages = document.getElementById('chat-messages');
+
+        const financialGoalInput = document.getElementById('financial-goal');
+        const investmentDetailsInput = document.getElementById('investment-details');
+        const generatePlanButton = document.getElementById('generate-plan-button');
+        const planOutputDiv = document.getElementById('plan-output');
+        const planContentDiv = document.getElementById('plan-content');
+        const planLoadingIndicator = document.getElementById('plan-loading-indicator');
+
+        // --- Utility Functions ---
+
+        /**
+         * Adds a message bubble to the chat display.
+         * @param {string} text - The text content of the message.
+         * @param {'user'|'ai'} sender - The sender of the message ('user' or 'ai').
+         */
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            if (sender === 'user') {
+                messageDiv.classList.add('user-message');
+            } else {
+                messageDiv.classList.add('ai-message');
+            }
+            // Use innerHTML to allow for basic formatting (e.g., line breaks from AI)
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+        }
+
+        /**
+         * Toggles the loading indicator visibility for the main chat.
+         * Disables/enables chat input and send button during loading.
+         * @param {boolean} show - True to show, false to hide.
+         */
+        function toggleChatLoading(show) {
+            let loadingDiv = document.getElementById('loading-indicator');
+            if (show) {
+                if (!loadingDiv) {
+                    loadingDiv = document.createElement('div');
+                    loadingDiv.id = 'loading-indicator';
+                    loadingDiv.classList.add('ai-message', 'message-bubble');
+                    loadingDiv.innerHTML = `Thinking<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>`;
+                    chatMessages.appendChild(loadingDiv);
+                }
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                userInput.disabled = true;
+                sendButton.disabled = true;
+            } else {
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus(); // Focus input for next message
+            }
+        }
+
+        /**
+         * Toggles the loading indicator visibility for the investment plan generation.
+         * Disables/enables plan input fields and button during loading.
+         * @param {boolean} show - True to show, false to hide.
+         */
+        function togglePlanLoading(show) {
+            if (show) {
+                planLoadingIndicator.classList.remove('hidden');
+                planOutputDiv.classList.add('hidden'); // Hide previous output
+                generatePlanButton.disabled = true;
+                financialGoalInput.disabled = true;
+                investmentDetailsInput.disabled = true;
+            } else {
+                planLoadingIndicator.classList.add('hidden');
+                generatePlanButton.disabled = false;
+                financialGoalInput.disabled = false;
+                investmentDetailsInput.disabled = false;
+            }
+        }
+
+        // --- Event Handlers ---
+
+        /**
+         * Handles sending a chat query to the backend (Ollama via API Gateway).
+         */
+        async function sendChatQuery() {
+            const query = userInput.value.trim();
+            if (query === '') return;
+
+            addMessage(query, 'user');
+            userInput.value = ''; // Clear input
+
+            toggleChatLoading(true); // Show loading indicator for chat
+
+            try {
+                // For a simple chat, we'll use a dummy symbol for now.
+                // The backend's GenAI service will fetch real data via Market Data Service.
+                const symbol = "RELIANCE"; // Default or infer from query
+
+                const response = await fetch('/api/v1/advice/' + symbol, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    // Frontend passes dummy stock_data; backend GenAI service fetches real data.
+                    body: JSON.stringify({ query: query, stock_data: { "latest_close": 0, "high": 0, "low": 0, "volume": 0 } })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addMessage(data.advice, 'ai');
+            } catch (error) {
+                console.error('Error with chat query:', error);
+                addMessage(`Sorry, I encountered an error with the chat: ${error.message}. Please try again.`, 'ai');
+            } finally {
+                toggleChatLoading(false); // Hide loading indicator
+            }
+        }
+
+        /**
+         * Handles generating an investment plan summary using the Gemini API.
+         */
+        async function generateInvestmentPlan() {
+            const goal = financialGoalInput.value.trim();
+            const details = investmentDetailsInput.value.trim();
+
+            if (goal === '' || details === '') {
+                // In a production app, use a custom modal instead of alert()
+                alert('Please enter both a financial goal and investment details.');
+                return;
+            }
+
+            togglePlanLoading(true); // Show loading indicator for plan
+
+            // Construct the detailed prompt for the Gemini LLM
+            const prompt = `As a highly knowledgeable financial advisor for the Indian market, create a high-level investment plan summary.
+            The plan should be concise, easy to understand, and suitable for a retail investor in India.
+
+            Financial Goal: ${goal}
+            Investment Details: ${details}
+
+            The plan summary MUST include:
+            1.  A brief, encouraging introductory statement.
+            2.  Suggested asset allocation (e.g., Equity, Debt, Gold, Real Estate - provide approximate percentages based on the goal/details).
+            3.  Key considerations for this specific goal (e.g., risk tolerance, inflation, diversification, liquidity needs, tax implications relevant to India).
+            4.  Potential investment avenues (e.g., Mutual Funds (SIPs, ELSS), Direct Equity, Fixed Deposits, Public Provident Fund (PPF), Gold Bonds, Real Estate).
+            5.  A concluding remark emphasizing the need for professional advice and regular review.
+
+            Ensure the language is clear and avoids overly technical jargon.`;
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+                const payload = { contents: chatHistory };
+                // The apiKey is provided by the Canvas environment at runtime.
+                // If deploying this frontend outside Canvas, you would need to securely
+                // manage and provide your actual Gemini API key here.
+                const apiKey = ""; 
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                // Check for valid response structure from Gemini API
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    planContentDiv.innerHTML = text.replace(/\n/g, '<br>'); // Display with line breaks
+                    planOutputDiv.classList.remove('hidden'); // Show the output div
+                } else {
+                    planContentDiv.textContent = 'Could not generate a plan. The AI might not have understood the request or there was an API issue.';
+                    planOutputDiv.classList.remove('hidden');
+                    console.error('Gemini API response structure unexpected or empty:', result);
+                }
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                planContentDiv.textContent = `Error generating plan: ${error.message}. Please check your network connection or try again.`;
+                planOutputDiv.classList.remove('hidden');
+            } finally {
+                togglePlanLoading(false); // Hide loading indicator
+            }
+        }
+
+        // --- Event Listeners ---
+        sendButton.addEventListener('click', sendChatQuery);
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendChatQuery();
+            }
+        });
+
+        // Event listener for the plan generation button
+        generatePlanButton.addEventListener('click', generateInvestmentPlan);
+    </script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# services/market-data-service/requirements.txt
+Flask
+yfinance

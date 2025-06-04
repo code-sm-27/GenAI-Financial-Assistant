@@ -1,0 +1,4 @@
+# services/api-gateway/requirements.txt
+Flask
+requests
+Flash-CORS

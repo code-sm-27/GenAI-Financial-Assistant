@@ -1,0 +1,5 @@
+# genai-financial-assistant/requirements.txt
+# General development tools, not necessarily for production services
+black
+flake8
+pytest
