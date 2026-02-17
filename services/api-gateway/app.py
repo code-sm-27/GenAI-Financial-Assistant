@@ -1,16 +1,20 @@
-import os, re, time, requests, logging, jwt
+import os, time, requests, logging, jwt
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Configure Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
-# FIX 1: Use a 32-byte (256-bit) key to satisfy RFC 7518
-app.config['SECRET_KEY'] = 'finsense_ultra_secure_production_key_32_chars_long!!'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://shivamani:password123@db:5432/finsense_db')
+# Configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'finsense_default_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://user:pass@db:5432/finsense_db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -30,60 +34,63 @@ class Interaction(db.Model):
     response = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-# --- CRITICAL FIX: FORCE DB INIT ---
-def force_initialize_database():
-    """Blocks execution until the database tables are confirmed to exist."""
-    print("--- WAITING FOR DATABASE CONNECTION ---")
+# --- Helper Function ---
+def setup_database():
+    """Retries DB connection until successful."""
     with app.app_context():
-        for attempt in range(30):  # Try for 30 seconds
+        retries = 10
+        while retries > 0:
             try:
-                # 1. Try to create tables
+                print("--- WAITING FOR DATABASE CONNECTION ---")
                 db.create_all()
-                # 2. VERIFY they exist by selecting from them
-                db.session.execute(db.text("SELECT 1 FROM app_users LIMIT 1"))
-                db.session.commit()
                 print("--- SUCCESS: DATABASE TABLES VERIFIED ---")
                 return
             except Exception as e:
-                print(f"Database not ready... retrying ({attempt+1}/30)")
-                time.sleep(2)
-        print("--- CRITICAL ERROR: COULD NOT CREATE TABLES ---")
-        exit(1)
+                print(f"Database not ready yet... Retrying ({retries} left)")
+                print(e)
+                time.sleep(5)
+                retries -= 1
+        print("!!! CRITICAL: COULD NOT CONNECT TO DATABASE !!!")
 
-# Run this IMMEDIATELY when the file loads
-force_initialize_database()
+# --- Routes ---
+@app.route('/')
+def home():
+    return render_template('index.html')
 
-# --- ROUTES ---
+@app.route('/login', methods=['GET'])
+def login_page():
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET'])
+def register_page():
+    return render_template('register.html')
+
 @app.route('/api/v1/register', methods=['POST'])
 def register():
     data = request.json
-    try:
-        # Check if user exists
-        if User.query.filter_by(username=data.get('username')).first():
-            return jsonify({"error": "Username already taken"}), 400
-        
-        hashed = generate_password_hash(data.get('password'), method='pbkdf2:sha256')
-        new_user = User(username=data.get('username'), password=hashed)
-        db.session.add(new_user)
-        db.session.commit()
-        return jsonify({"message": "User registered successfully"}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({"error": "User already exists"}), 400
+    
+    hashed_pw = generate_password_hash(data['password'])
+    new_user = User(username=data['username'], password=hashed_pw)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"message": "User registered"}), 201
 
 @app.route('/api/v1/login', methods=['POST'])
 def login():
-    data = request.json
     try:
+        data = request.json
         user = User.query.filter_by(username=data.get('username')).first()
         if user and check_password_hash(user.password, data.get('password')):
             token = jwt.encode({
-                'u_id': user.id, 
+                'u_id': user.id,
                 'exp': datetime.utcnow() + timedelta(hours=24)
             }, app.config['SECRET_KEY'], algorithm="HS256")
-            return jsonify({'token': token})
-        return jsonify({'error': 'Invalid credentials'}), 401
+            return jsonify({"token": token})
+        return jsonify({"error": "Invalid credentials"}), 401
     except Exception as e:
+        logger.error(f"Login Error: {e}")
         return jsonify({"error": "Login failed"}), 500
 
 @app.route('/api/v1/chat', methods=['POST'])
@@ -92,39 +99,56 @@ def chat():
     if not token: return jsonify({"error": "No token"}), 401
     
     try:
+        # 1. Verify Token
         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
         u_id = payload['u_id']
         
-        # FIX 2: Verify user exists in current DB before proceeding
-        user = db.session.get(User, u_id)
-        if not user:
-            return jsonify({"error": "User session invalid. Please re-login."}), 401
-
+        # 2. Get Data
         data = request.json
-        # Call AI Service
-        ai_res = requests.post("http://genai-inference-service:5003/generate", 
-                               json={"user_query": data['query'], "task": "chat"}, timeout=30)
-        advice = ai_res.json().get('advice')
+        user_query = data.get('query')
 
-        # Save with verified u_id
-        db.session.add(Interaction(user_id=u_id, query=data['query'], response=advice))
+        # 3. Connect to AI Service (FIXED LOGIC)
+        # Use the Environment Variable, NOT the hardcoded URL
+        genai_url = os.getenv('GENAI_SERVICE_URL')
+        
+        if not genai_url:
+            logger.error("GENAI_SERVICE_URL environment variable is missing!")
+            return jsonify({"advice": "System Error: AI Service URL not configured."})
+
+        # Ensure no trailing slash issues
+        genai_url = genai_url.rstrip('/') 
+
+        # Call the AI
+        try:
+            logger.info(f"Connecting to AI Service at: {genai_url}/generate")
+            ai_res = requests.post(f"{genai_url}/generate", 
+                                  json={"user_query": user_query, "task": "chat"}, 
+                                  timeout=30)
+            
+            # Check if we got JSON back (or HTML error page)
+            try:
+                ai_data = ai_res.json()
+                advice = ai_data.get('advice', "No advice returned.")
+            except ValueError:
+                logger.error(f"AI Service returned non-JSON: {ai_res.text[:100]}")
+                advice = "Error: AI Service returned an invalid response."
+
+        except Exception as e:
+            logger.error(f"Failed to connect to AI Service: {e}")
+            advice = "I am currently unable to reach the AI engine. Please try again later."
+
+        # 4. Save Interaction
+        db.session.add(Interaction(user_id=u_id, query=user_query, response=advice))
         db.session.commit()
+        
         return jsonify({"advice": advice})
         
     except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": "Session expired or invalid"}), 401
-    
-@app.route('/')
-def home(): return render_template('index.html')
+        logger.error(f"Chat Route Error: {e}")
+        return jsonify({"error": "Session invalid or server error"}), 401
 
-@app.route('/login')
-def login_page(): return render_template('login.html')
-
-@app.route('/register')
-def register_page(): return render_template('register.html')
-
+# --- Execution Entry Point ---
 if __name__ == '__main__':
-    setup_database()
-    port = int(os.environ.get("PORT", 10000))  # Get Port from Render
+    setup_database()  # This now matches the function name above
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
