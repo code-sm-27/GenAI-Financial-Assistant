@@ -1,0 +1,2 @@
+# services/user-management-service/requirements.txt
+Flask

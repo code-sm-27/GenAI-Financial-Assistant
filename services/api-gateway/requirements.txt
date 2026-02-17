@@ -1,0 +1,8 @@
+Flask
+requests
+Flask-Cors
+Flask-SQLAlchemy
+psycopg2-binary
+PyJWT
+werkzeug
+redis

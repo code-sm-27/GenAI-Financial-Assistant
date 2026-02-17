@@ -1,0 +1,20 @@
+# services/genai-inference-service/financial_corpus/sample_docs.txt
+--- Doc 1 ---
+What is a Systematic Investment Plan (SIP)?
+A Systematic Investment Plan (SIP) is a method of investing a fixed amount of money regularly (e.g., weekly, monthly, quarterly) into a mutual fund scheme. It allows investors to buy units of a mutual fund at different price points over time, averaging out the cost per unit and mitigating market volatility through rupee cost averaging. SIPs are popular in India for long-term wealth creation.
+
+--- Doc 2 ---
+Understanding Rupee Cost Averaging
+Rupee cost averaging is an investment strategy that aims to reduce the average cost of shares over time. By investing a fixed amount of money at regular intervals, an investor buys more units when prices are low and fewer units when prices are high. This strategy helps in mitigating the risk of investing a lump sum at a market peak.
+
+--- Doc 3 ---
+Types of Mutual Funds in India
+In India, mutual funds can be broadly categorized based on their asset class (equity, debt, hybrid), investment objective (growth, income, balanced), and structure (open-ended, close-ended). Equity funds invest primarily in stocks, debt funds in fixed-income securities, and hybrid funds in a mix of both. Sector-specific funds, thematic funds, and index funds are other popular types.
+
+--- Doc 4 ---
+Equity vs. Debt Investments
+Equity investments, like stocks and equity mutual funds, offer higher growth potential but come with higher risk due to market fluctuations. Debt investments, such as bonds and debt mutual funds, are generally less volatile and provide stable returns, making them suitable for conservative investors or short-to-medium term goals.
+
+--- Doc 5 ---
+Role of SEBI in Indian Capital Markets
+The Securities and Exchange Board of India (SEBI) is the regulatory body for the securities market in India. It protects the interests of investors in securities, promotes the development of the securities market, and regulates it. SEBI's functions include regulating stock exchanges, mutual funds, merchant bankers, and preventing fraudulent and unfair trade practices. Investment advisors are also regulated by SEBI.

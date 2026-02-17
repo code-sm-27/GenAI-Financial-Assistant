@@ -1,0 +1,55 @@
+services:
+  # --- PERSISTENCE LAYER ---
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: shivamani
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: finsense_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  # --- APPLICATION LAYER ---
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://shivamani:password123@db:5432/finsense_db
+      REDIS_URL: redis://redis:6379
+      FLASK_APP: app.py
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+
+  market-data-service:
+    build: ./services/market-data-service
+    networks:
+      - app-network
+
+  genai-inference-service:
+    build: ./services/genai-inference-service
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
