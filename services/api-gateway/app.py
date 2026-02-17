@@ -125,4 +125,6 @@ def login_page(): return render_template('login.html')
 def register_page(): return render_template('register.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    setup_database()
+    port = int(os.environ.get("PORT", 10000))  # Get Port from Render
+    app.run(host='0.0.0.0', port=port)

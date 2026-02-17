@@ -56,10 +56,7 @@ def get_data(symbol):
         return jsonify({"error": "Internal server error while fetching market data"}), 500
 
 # --- Application Entry Point ---
+
 if __name__ == '__main__':
-    # When running directly, Flask's development server is used.
-    # In a Docker container, this is typically managed by a WSGI server like Gunicorn.
-    # Set debug=True for development to enable reloader and debugger.
-    # Set debug=False for production.
-    # Running on a different port (5001) than the API Gateway (5000).
-    app.run(host='00.0.0', port=5001, debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
