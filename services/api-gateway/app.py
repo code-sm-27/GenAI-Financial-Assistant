@@ -1,4 +1,4 @@
-import os, time, requests, logging, jwt
+import os, sys, time, requests, logging, jwt
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
@@ -51,6 +51,7 @@ def setup_database():
                 time.sleep(5)
                 retries -= 1
         print("!!! CRITICAL: COULD NOT CONNECT TO DATABASE !!!")
+        sys.exit(1)
 
 # --- Routes ---
 @app.route('/')
@@ -150,5 +151,5 @@ def chat():
 # --- Execution Entry Point ---
 if __name__ == '__main__':
     setup_database()  # This now matches the function name above
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)

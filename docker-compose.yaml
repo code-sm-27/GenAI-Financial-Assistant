@@ -6,8 +6,6 @@ services:
       POSTGRES_USER: shivamani
       POSTGRES_PASSWORD: password123
       POSTGRES_DB: finsense_db
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -29,6 +27,7 @@ services:
       DATABASE_URL: postgresql://shivamani:password123@db:5432/finsense_db
       REDIS_URL: redis://redis:6379
       FLASK_APP: app.py
+      GENAI_SERVICE_URL: http://genai-inference-service:5000
     depends_on:
       - db
       - redis
@@ -37,6 +36,8 @@ services:
 
   market-data-service:
     build: ./services/market-data-service
+    environment:
+      REDIS_URL: redis://redis:6379/0
     networks:
       - app-network
 
@@ -44,6 +45,7 @@ services:
     build: ./services/genai-inference-service
     environment:
       GROQ_API_KEY: ${GROQ_API_KEY}
+      MARKET_DATA_URL: http://market-data-service:5000
     networks:
       - app-network
 

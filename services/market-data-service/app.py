@@ -6,13 +6,18 @@
 
 from flask import Flask, jsonify
 from data_fetcher import fetch_stock_data # Import the data fetching logic
+from cache import RedisCache
 import logging # For logging application events and errors
+import os
 
 # Configure logging for the application
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Initialize the Flask application
 app = Flask(__name__)
+
+# Initialize Redis Cache
+cache = RedisCache()
 
 # --- Health Check Endpoint ---
 @app.route('/health', methods=['GET'])
@@ -39,12 +44,24 @@ def get_data(symbol):
         JSON error: Contains an error message on failure (HTTP 404 or 500).
     """
     logging.info(f"Received request for market data for symbol: {symbol}")
+    
+    # 1. Check Cache
+    cache_key = f"market_data:{symbol.upper()}"
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        logging.info(f"Returning cached data for {symbol}.")
+        return jsonify(cached_data), 200
+        
     try:
         # In a real system, 'period' and 'interval' might be query parameters
         # or defaults based on the type of data required (e.g., tick, 1min, daily).
         # For this prototype, we fetch 1-minute data for the current day.
         stock_data = fetch_stock_data(symbol.upper(), period="1d", interval="1m")
         logging.info(f"Successfully fetched data for {symbol}.")
+        
+        # 2. Save to Cache (TTL 60s)
+        cache.set(cache_key, stock_data, ttl_seconds=60)
+        
         return jsonify(stock_data), 200
     except ValueError as e:
         # Handle cases where no data is found for the symbol
@@ -58,5 +75,5 @@ def get_data(symbol):
 # --- Application Entry Point ---
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
