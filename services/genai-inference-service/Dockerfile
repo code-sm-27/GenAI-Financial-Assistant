@@ -1,18 +1,19 @@
-FROM python:3.9-slim-bullseye
-
+# Stage 1: Build
+FROM python:3.12-slim as builder
 WORKDIR /app
-
-# Install dependencies for psycopg2 and other tools
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    python3-dev \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-COPY . .
+# Stage 2: Runtime
+FROM python:3.12-slim as development
+WORKDIR /app
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+RUN pip install --no-cache /wheels/*
+COPY src/ /app/src/
+EXPOSE 5002
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5002", "--reload"]
 
-CMD ["python", "app.py"]
+# Stage 3: Production
+FROM development as production
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5002", "--workers", "2"]

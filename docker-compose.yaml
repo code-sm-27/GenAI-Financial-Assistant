@@ -1,56 +1,117 @@
+
 services:
   # --- PERSISTENCE LAYER ---
   db:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: finsense_db
     environment:
-      POSTGRES_USER: shivamani
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: finsense_db
+      POSTGRES_USER: ${POSTGRES_USER:-finsense_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-finsense_password}
+      POSTGRES_DB: ${POSTGRES_DB:-finsense_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
-      - app-network
+      - finsense-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-finsense_user} -d ${POSTGRES_DB:-finsense_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    container_name: finsense_redis
     ports:
       - "6379:6379"
     networks:
-      - app-network
+      - finsense-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # --- APPLICATION LAYER ---
   api-gateway:
-    build: ./services/api-gateway
+    build: 
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+      target: development
+    container_name: finsense_api_gateway
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgresql://shivamani:password123@db:5432/finsense_db
-      REDIS_URL: redis://redis:6379
-      FLASK_APP: app.py
-      GENAI_SERVICE_URL: http://genai-inference-service:5000
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-finsense_user}:${POSTGRES_PASSWORD:-finsense_password}@db:5432/${POSTGRES_DB:-finsense_db}
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+      - MARKET_DATA_SERVICE_URL=http://market-data-service:5001
+      - GENAI_SERVICE_URL=http://genai-inference-service:5002
+    volumes:
+      - ./services/api-gateway:/app
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
-      - app-network
+      - finsense-network
 
   market-data-service:
-    build: ./services/market-data-service
+    build: 
+      context: ./services/market-data-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: finsense_market_data
+    ports:
+      - "5001:5001"
     environment:
-      REDIS_URL: redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+    volumes:
+      - ./services/market-data-service:/app
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
-      - app-network
+      - finsense-network
 
   genai-inference-service:
-    build: ./services/genai-inference-service
+    build: 
+      context: ./services/genai-inference-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: finsense_genai
+    ports:
+      - "5002:5002"
     environment:
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      MARKET_DATA_URL: http://market-data-service:5000
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - ENVIRONMENT=development
+    volumes:
+      - ./services/genai-inference-service:/app
     networks:
-      - app-network
+      - finsense-network
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: finsense_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - finsense-network
 
 networks:
-  app-network:
+  finsense-network:
     driver: bridge
 
 volumes:

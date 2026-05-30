@@ -1,96 +1,58 @@
-# FinSense: Distributed GenAI Financial Intelligence Platform
+# FinSense - Institutional-Grade Distributed GenAI Financial Intelligence Platform
 
-[![Deployment Status](https://img.shields.io/badge/Deployment-Live-success?style=for-the-badge&logo=render)](https://api-gateway.onrender.com)
-[![Tech Stack](https://img.shields.io/badge/Stack-Flask%20%7C%20Docker%20%7C%20Llama3-blue?style=for-the-badge)](https://github.com/code-sm-27/GenAI-Financial-Assistant)
+FinSense is a powerful, distributed financial intelligence platform utilizing agentic RAG and real-time market data. Built with an institutional-grade microservices architecture.
 
-**FinSense** is an institutional-grade financial assistant that uses **Agentic RAG (Retrieval-Augmented Generation)** to provide real-time stock analysis and personalized investment strategies. Unlike standard chatbots, FinSense grounds its answers in live market data to prevent hallucinations.
+## Architecture
 
-🔗 **Live Demo:** [https://api-gateway.onrender.com](https://api-gateway.onrender.com)
+![Architecture Diagram](https://via.placeholder.com/800x400.png?text=FinSense+Architecture)
 
----
+The system consists of three microservices and a frontend:
+1. **Frontend (React 18 + Vite + TS + Tailwind)**: Modern, responsive UI.
+2. **API Gateway (FastAPI)**: Central entry point, handles JWT Authentication, rate limiting, and request routing.
+3. **GenAI Inference Service (FastAPI)**: Integrates with Groq (Llama-3) for Agentic RAG capabilities.
+4. **Market Data Service (FastAPI)**: Handles integration with yFinance/Alpha Vantage, using Redis for rate-limit protection and caching.
 
-## 🚀 Key Features
+**Infrastructure**: PostgreSQL (relational data), Redis (caching).
 
-* **Real-Time Market Data:** Integrates with `yFinance` to fetch live stock prices, PE ratios, and market caps during conversation.
-* **Agentic RAG Pipeline:** Dynamically injects financial data into the Llama-3 context window for factual accuracy.
-* **Microservices Architecture:** Decoupled services for Gateway, Inference, and Data fetching, communicating via REST APIs.
-* **Secure Authentication:** Custom JWT-based stateless authentication with a Google-style login UI.
-* **Resilient Deployment:** Hosted on **Render** with PostgreSQL persistence and environment-based configuration.
+## Setup Instructions
 
----
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for local frontend dev, optional if using Docker)
+- Python 3.12+
 
-## 🏗️ System Architecture
+### 1. Environment Variables
+Copy the template `.env.example` to `.env` and fill in your keys:
+```bash
+cp .env.example .env
+# Edit .env with your Groq and Alpha Vantage API keys
+```
 
-The system is built as a distributed microservices application:
+### 2. Run Locally
+The easiest way to run the entire stack locally is via Docker Compose:
+```bash
+docker-compose up --build
+```
+This spins up:
+- PostgreSQL on `5432`
+- Redis on `6379`
+- API Gateway on `http://localhost:5000`
+- Market Data Service on `http://localhost:5001`
+- GenAI Service on `http://localhost:5002`
+- Frontend on `http://localhost:5173`
 
-1.  **API Gateway (Flask):** The entry point. Handles user auth (Register/Login), session management, and routing requests to internal services.
-2.  **GenAI Inference Service:** Runs the Llama-3 model via Groq API. It processes the user query and synthesizes the final response.
-3.  **Market Data Service:** A specialized worker that fetches real-time financial metrics (Stock Prices, News) when requested by the AI.
-4.  **Database (PostgreSQL):** Stores user profiles and interaction history.
+### 3. API Documentation
+Each FastAPI service provides interactive Swagger UI docs:
+- API Gateway: `http://localhost:5000/docs`
+- GenAI Service: `http://localhost:5002/docs`
+- Market Data Service: `http://localhost:5001/docs`
 
-
-
----
-
-## 🛠️ Tech Stack
-
-* **Backend:** Python 3.9, Flask
-* **AI Model:** Llama-3 (via Groq Cloud API)
-* **Database:** PostgreSQL (Render Managed)
-* **DevOps:** Docker, Docker Compose, GitOps
-* **Frontend:** HTML5, JavaScript (ES6), Tailwind CSS
-* **Security:** PyJWT, Werkzeug Security, CORS
-
----
-
-## ⚙️ Installation & Local Setup
-
-To run this project locally using Docker Compose:
-
-1.  **Clone the Repository**
-    ```bash
-    git clone [https://github.com/code-sm-27/GenAI-Financial-Assistant.git](https://github.com/code-sm-27/GenAI-Financial-Assistant.git)
-    cd GenAI-Financial-Assistant
-    ```
-
-2.  **Configure Environment Variables**
-    Create a `.env` file in the root directory:
-    ```env
-    GROQ_API_KEY=your_actual_api_key_here
-    SECRET_KEY=any_random_string_for_security
-    DATABASE_URL=postgresql://user:pass@db:5432/finsense_db
-    ```
-
-3.  **Run with Docker Compose**
-    ```bash
-    docker-compose up --build
-    ```
-
-4.  **Access the App**
-    Open your browser to `http://localhost:5000`
+## Continuous Integration
+Pushing to the `main` branch triggers the GitHub Actions CI/CD pipeline, which:
+1. Lints code with `flake8`
+2. Runs unit tests with `pytest`
+3. Builds multi-stage Docker images
+4. Deploys to Google Cloud Run (Free Tier)
 
 ---
-
-## ☁️ Deployment (Render)
-
-This project is deployed using a cloud-native workflow on **Render**:
-
-1.  **Database:** Managed PostgreSQL instance on Render.
-2.  **Services:**
-    * `api-gateway` (Web Service)
-    * `gen-ai-financial-assistant` (Web Service)
-    * `market-data-service` (Web Service)
-3.  **Configuration:** Environment variables (`GROQ_API_KEY`, `DATABASE_URL`) are injected securely via the Render Dashboard, keeping secrets out of the codebase.
-
----
-
-## 🔮 Future Improvements
-
-* **Portfolio Tracking:** Allow users to save stocks to a dashboard.
-* **Voice Interface:** Integration with Whisper AI for voice-to-text financial queries.
-* **Technical Charts:** Rendering candlestick charts directly in the chat interface.
-
----
-
-**Developed by Shivamani Burgu**
-*Connect with me on [LinkedIn](https://www.linkedin.com/in/shivamani27/)*
+*Built to industry standards: Async IO, Pydantic v2 validation, Structured Logging, Health checks, and JWT rotation.*

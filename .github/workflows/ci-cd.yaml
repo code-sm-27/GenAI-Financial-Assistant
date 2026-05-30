@@ -1,0 +1,76 @@
+name: FinSense CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install Linting & Test Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest pytest-asyncio httpx
+
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      # Future Test steps:
+      # - name: Test API Gateway
+      #   run: pytest services/api-gateway/tests/
+      # - name: Test GenAI Service
+      #   run: pytest services/genai-inference-service/tests/
+      # - name: Test Market Data Service
+      #   run: pytest services/market-data-service/tests/
+
+  build-and-deploy:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      # Example GCP Deployment (Free Tier Cloud Run)
+      # - id: 'auth'
+      #   uses: 'google-github-actions/auth@v1'
+      #   with:
+      #     credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      
+      # - name: 'Set up Cloud SDK'
+      #   uses: 'google-github-actions/setup-gcloud@v1'
+
+      # - name: 'Docker auth'
+      #   run: |-
+      #     gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      # - name: Build and Push API Gateway
+      #   run: |
+      #     docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/finsense/api-gateway:${{ github.sha }} ./services/api-gateway
+      #     docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/finsense/api-gateway:${{ github.sha }}
+
+      # - name: Deploy API Gateway to Cloud Run
+      #   run: |
+      #     gcloud run deploy api-gateway \
+      #       --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/finsense/api-gateway:${{ github.sha }} \
+      #       --region ${{ env.REGION }} \
+      #       --allow-unauthenticated
