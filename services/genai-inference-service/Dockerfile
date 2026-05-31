@@ -12,8 +12,8 @@ COPY --from=builder /app/requirements.txt .
 RUN pip install --no-cache /wheels/*
 COPY src/ /app/src/
 EXPOSE 5002
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5002", "--reload"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5002} --reload"]
 
 # Stage 3: Production
 FROM development as production
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5002", "--workers", "2"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5002} --workers 2"]

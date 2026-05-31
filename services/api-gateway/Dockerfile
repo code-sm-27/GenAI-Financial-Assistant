@@ -34,8 +34,8 @@ COPY src/ /app/src/
 EXPOSE 5000
 
 # Start FastAPI using uvicorn
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5000} --reload"]
 
 # Stage 3: Production (Minimal)
 FROM development as production
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "4"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5000} --workers 4"]
