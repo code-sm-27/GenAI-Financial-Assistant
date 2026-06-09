@@ -10,10 +10,10 @@ WORKDIR /app
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/requirements.txt .
 RUN pip install --no-cache /wheels/*
-COPY src/ /app/src/
+COPY . /app/
 EXPOSE 5002
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5002} --reload"]
+CMD ["python", "app.py"]
 
 # Stage 3: Production
 FROM development as production
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5002} --workers 2"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5002", "--workers", "2", "app:app"]

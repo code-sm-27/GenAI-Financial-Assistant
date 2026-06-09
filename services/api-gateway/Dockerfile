@@ -28,14 +28,14 @@ COPY --from=builder /app/requirements.txt .
 RUN pip install --no-cache /wheels/*
 
 # Copy source code
-COPY src/ /app/src/
+COPY . /app/
 
 # Expose port
 EXPOSE 5000
 
-# Start FastAPI using uvicorn
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5000} --reload"]
+# Start Flask application
+CMD ["python", "app.py"]
 
 # Stage 3: Production (Minimal)
 FROM development as production
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-5000} --workers 4"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]
