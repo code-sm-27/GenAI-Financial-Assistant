@@ -38,4 +38,4 @@ CMD ["python", "app.py"]
 
 # Stage 3: Production (Minimal)
 FROM development as production
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]
+CMD ["python", "app.py"]

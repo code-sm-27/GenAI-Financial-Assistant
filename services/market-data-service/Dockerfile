@@ -16,4 +16,4 @@ CMD ["python", "app.py"]
 
 # Stage 3: Production
 FROM development as production
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "app:app"]
+CMD ["python", "app.py"]
